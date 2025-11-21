@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form addfieldprefix="Joomla\Component\RadicalMart\Administrator\Field">
+	<fieldset name="settings_root"
+			  tab="settings"
+			  label="PLG_RADICALMART_PAYMENT_PAYSELECTION_PARAMS_PAYMENT">
+		<fields name="params">
+			<field name="payment_available" type="statuses"
+				   label="PLG_RADICALMART_PAYMENT_PAYSELECTION_PARAMS_PAYMENT_AVAILABLE"
+				   hint=" "
+				   multiple="true"
+				   required="true"
+				   layout="joomla.form.field.list-fancy-select"/>
+			<field name="paid_status" type="statuses"
+				   label="PLG_RADICALMART_PAYMENT_PAYSELECTION_PARAMS_PAID_STATUS"
+				   required="true"
+				   layout="joomla.form.field.list-fancy-select">
+				<option value="">COM_RADICALMART_STATUS_SELECT</option>
+			</field>
+			<field name="tinkoff_test" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST"
+				   default="1"
+				   class="btn-group btn-group-yesno"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_DESC">
+				<option value="1">JYES</option>
+				<option value="0">JNO</option>
+			</field>
+			<field name="tinkoff_tid" type="text"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TID"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TID_DESC"
+				   autocomplete="false"/>
+			<field name="tinkoff_password" type="password"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PASSWORD"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PASSWORD_DESC"
+				   autocomplete="false"/>
+		</fields>
+	</fieldset>
+	<fieldset name="settings_urls" tab="settings" label="COM_RADICALMART_PAYMENT_METHOD_URLS">
+		<field type="urls_payment"
+			   hiddenLabel="true"
+			   plugin="tinkoff"/>
+	</fieldset>
+</form>
