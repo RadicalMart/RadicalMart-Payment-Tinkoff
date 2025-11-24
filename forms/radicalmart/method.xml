@@ -20,18 +20,38 @@
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST"
 				   default="1"
 				   class="btn-group btn-group-yesno"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_DESC">
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_DESCRIPTION">
+				<option value="1">JYES</option>
+				<option value="0">JNO</option>
+			</field>
+			<field name="tinkoff_credit" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_CREDIT"
+				   default="0"
+				   class="btn-group btn-group-yesno">
 				<option value="1">JYES</option>
 				<option value="0">JNO</option>
 			</field>
 			<field name="tinkoff_tid" type="text"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TID"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TID_DESC"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TID_DESCRIPTION"
 				   autocomplete="false"/>
 			<field name="tinkoff_password" type="password"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PASSWORD"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PASSWORD_DESC"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PASSWORD_DESCRIPTION"
 				   autocomplete="false"/>
+			<field name="tinkoff_sno" type="list"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO"
+				   default="osn"
+				   layout="joomla.form.field.list-fancy-select">
+				<option value="osn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_OSN</option>
+				<option value="usn_income">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_USN_INCOME</option>
+				<option value="usn_income_outcome">
+					PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_USN_INCOME_OUTCOME
+				</option>
+				<option value="envd">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_ENVD</option>
+				<option value="esn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_ESN</option>
+				<option value="patent">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_PATENT</option>
+			</field>
 		</fields>
 	</fieldset>
 	<fieldset name="settings_urls" tab="settings" label="COM_RADICALMART_PAYMENT_METHOD_URLS">
