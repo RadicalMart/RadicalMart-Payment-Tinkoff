@@ -15,6 +15,8 @@ namespace Joomla\Plugin\RadicalMartPayment\Tinkoff\Extension;
 
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
+use Joomla\Component\RadicalMart\Site\Model\PaymentModel as RadicalMartPaymentModel;
+use Joomla\Component\RadicalMartExpress\Site\Model\PaymentModel as RadicalMartExpressPaymentModel;
 use Joomla\Event\SubscriberInterface;
 use Joomla\Http\HttpFactory;
 use Joomla\Plugin\RadicalMartPayment\Tinkoff\Helper\IntegrationHelper;
@@ -23,13 +25,20 @@ use Joomla\Registry\Registry;
 class Tinkoff extends CMSPlugin implements SubscriberInterface
 {
 	/**
-	 * Plugin params prefix.
+	 * Extension name.
 	 *
-	 * @var   string
+	 * @var string
 	 *
 	 * @since __DEPLOY_VERSION__
 	 */
-	protected string $paramsPrefix = 'tinkoff_';
+	public string $extension = 'plg_radicalmart_payment_tinkoff';
+
+	/**
+	 * Test environment.
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	protected bool $test_environment = false;
 
 	/**
 	 * Load the language file on instantiation.
@@ -53,11 +62,12 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			'onRadicalMartGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
 			'onRadicalMartCheckOrderPay'          => 'onCheckOrderPay',
 			'onRadicalMartPaymentPay'             => 'onPaymentPay',
+			'onRadicalMartPaymentCallback'        => 'onPaymentCallback',
 
-			// 'onRadicalMartExpressGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
-			// 'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
-			// 'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
-			//	'onRadicalMartExpressPrepareConfigForm'      => 'onRadicalMartExpressPrepareConfigForm',
+//			'onRadicalMartExpressGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
+//			'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
+//			'onRadicalMartExpressPaymentCallback'        => 'onPaymentCallback',
+//			'onRadicalMartExpressPrepareConfigForm'      => 'onRadicalMartExpressPrepareConfigForm',
 		];
 	}
 
@@ -176,22 +186,21 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		$request = false;
 
 		$debug        = false;
+		$component    = $this->getApplication()->getInput()->getCmd('option');
 		$debugger     = 'payment.pay';
 		$debuggerFile = 'site_payment_controller.php';
 		$debugAction  = 'Init plugin';
 
 		try
 		{
-
 			$component = IntegrationHelper::getComponentFromContext($context);
 			if (!$component)
 			{
 				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_COMPONENT'), 500);
 			}
 
-			$debug = IntegrationHelper::getDebugHelper($component);
-
 			// Check order payment method
+			$debug = IntegrationHelper::getDebugHelper($component);
 			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check payment method', 'start');
 			if (empty($order->payment)
 				|| empty($order->payment->id)
@@ -202,16 +211,14 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_PLUGIN'), 500);
 			}
 
-			// Check access params
+			// Check params
 			$params = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($order->payment->id);
-			$test   = ((int) $params->get('tinkoff_test', 1) === 1);
 			$credit = ((int) $params->get('tinkoff_credit', 0) === 1);
 			if (empty($params->get('tinkoff_tid')) || empty($params->get('tinkoff_password')))
 			{
 				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
 			}
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [], null, false);
-
 
 			// Prepare request data
 			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Prepare api request data', 'start');
@@ -222,35 +229,384 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			else
 			{
 				$data = $this->prepareSecurePayInitData($component, $order, $links, $params);
-				$url  = ($test) ? 'https://rest-api-test.tinkoff.ru/v2/' : 'https://securepay.tinkoff.ru/v2/';
+				$url  = ($this->test_environment) ? 'https://rest-api-test.tinkoff.ru/v2/'
+					: 'https://securepay.tinkoff.ru/v2/';
 				$url  .= 'Init';
 			}
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [], null, false);
 
 			// Send request
-			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send api request', 'start');
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send api request', 'start', null,
+				[
+					'request_url'  => $url,
+					'request_data' => $data,
+				]);
 			$request = $this->sendPostRequest($url, $data);
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
+				'response_data' => $request->toArray(),
+			]);
 
-			echo '<pre>', print_r($request, true), '</pre>';
+			$log = [
+				'plugin' => $this->_name,
+				'group'  => $this->_type,
+				'credit' => $credit
+			];
 
-			exit('2');
+			if ($credit)
+			{
+				// TODO CREDIT
+				$link = false;
+			}
+			else
+			{
+				$log['PaymentId'] = $request->get('PaymentId');
+				$link             = $request->get('PaymentURL', false);
+			}
+
+			IntegrationHelper::addOrderLog($component, $order->id, 'tinkoff_create', $log);
+
+			return [
+				'pay_instant' => true,
+				'link'        => $link,
+			];
 		}
 		catch (\Throwable $e)
 		{
+			$log = [
+				'context'       => $context,
+				'component'     => $component,
+				'message'       => $e->getMessage(),
+				'error_code'    => $e->getCode(),
+				'request_url'   => $url,
+				'request_data'  => $data,
+				'response_data' => ($request) ? $request->toArray() : null,
+			];
+
 			if ($debug)
 			{
-				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'error', $e->getCode() . ': ' . $e->getMessage(), [
-					'context'       => $context,
-					'message'       => $e->getMessage(),
-					'error_code'    => $e->getCode(),
-					'request_url'   => $url,
-					'request_data'  => $data,
-					'response_data' => $request
-				]);
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'error',
+					$e->getCode() . ': ' . $e->getMessage(), $log);
 			}
+
+			IntegrationHelper::logError($this->extension, $e->getMessage(), $e->getCode(), $log);
+			IntegrationHelper::addOrderLog($component, $order->id, 'tinkoff_create_error', [
+				'plugin'        => $this->_name,
+				'group'         => $this->_type,
+				'error_code'    => $e->getCode(),
+				'error_message' => $e->getMessage(),
+			]);
 
 			throw new \Exception('Tinkoff: ' . $e->getMessage(), 500, $e);
 		}
+	}
+
+	/**
+	 * Method to set RadicalMart & RadicalMartExpress order pay status after payment.
+	 *
+	 * @param   array                                                    $input   Input data.
+	 * @param   RadicalMartExpressPaymentModel| RadicalMartPaymentModel  $model   RadicalMart model.
+	 * @param   Registry                                                 $params  RadicalMart params.
+	 *
+	 * @throws \Exception
+	 *
+	 * @since  2.0.0
+	 */
+	public function onPaymentCallback(string                                                 $context, array $input,
+	                                  RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model, Registry $params): void
+	{
+		$app = $this->getApplication();
+
+		$debug              = false;
+		$order_id           = false;
+		$transactionOrderId = false;
+		$transactionStatus  = false;
+
+		$data    = false;
+		$url     = false;
+		$request = false;
+
+		$component = $app->getInput()->getCmd('option');
+
+		$debugger     = 'payment.callback';
+		$debuggerFile = 'site_payment_controller.php';
+		$debugAction  = 'Init plugin';
+
+		try
+		{
+			$component = IntegrationHelper::getComponentFromContext($context);
+			if (!$component)
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_COMPONENT'), 500);
+			}
+
+			// Check input data
+			$debug = IntegrationHelper::getDebugHelper($component);
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check input data', 'start', null, $input);
+			if (empty($input['Status']) || !in_array($input['Status'], [
+					'CONFIRMED', 'AUTHORIZED',
+				]))
+			{
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response', 'Incorrect Input Status');
+
+				$this->setCallbackResponse();
+
+				return;
+			}
+			$transactionStatus = $input['Status'];
+
+			if (empty($input['PaymentId']))
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_TRANSACTION_NOT_FOUND'), 404);
+			}
+
+			if (empty($input['OrderId']))
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND!'), 404);
+			}
+
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [], null, false);
+
+			$transactionOrderId = $input['OrderId'];
+			$order_id           = (int) explode('_', $transactionOrderId)[0];
+
+			// Get order
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Get order', 'start', null, [
+				'transaction_OrderId' => $transactionOrderId,
+				'order_id'            => $order_id,
+			]);
+			if (!$order = $model->getOrder($order_id, 'id'))
+			{
+				$messages = [];
+				foreach ($model->getErrors() as $error)
+				{
+					$messages[] = ($error instanceof \Exception) ? $error->getMessage() : $error;
+				}
+
+				if (empty($messages))
+				{
+					$messages[] = Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND2');
+				}
+
+				$order_id = 0;
+
+				throw new \Exception(implode(PHP_EOL, $messages), 500);
+			}
+
+			$order_id     = $order->id;
+			$order_number = $order->number;
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
+				'order_id'     => $order_id,
+				'order_number' => $order_number,
+			], false);
+
+			// Check order payment method
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check payment method', 'start');
+			if (empty($order->payment)
+				|| empty($order->payment->id)
+				|| empty($order->payment->plugin)
+				|| $order->payment->plugin !== 'tinkoff')
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_PLUGIN'));
+			}
+
+			// Check params
+			$params = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($order->payment->id);
+			$credit = ((int) $params->get('tinkoff_credit', 0) === 1);
+			if (empty($params->get('tinkoff_tid')) || empty($params->get('tinkoff_password')))
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
+			}
+			$tinkoff_tid      = trim($params->get('tinkoff_tid'));
+			$tinkoff_password = trim($params->get('tinkoff_password'));
+
+			// Check order status
+			if (empty($order->status->id) || !in_array($order->status->id, $params->get('payment_available', [])))
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_ORDER_STATUS'), 500);
+			}
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, false);
+
+			// Validate  data
+			$token = $this->getToken($app->getInput()->json->getArray(), $tinkoff_password);
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check token', 'start', null, [
+				'input_token' => $input['Token'],
+				'check_token' => $token,
+			]);
+			if ($token !== $input['Token'])
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_SIGNATURE_FAILED'));
+			}
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, false);
+
+			// Validate request
+			if ($credit)
+			{
+				// TODO Credit
+			}
+			else
+			{
+				$data          = [
+					'TerminalKey' => $tinkoff_tid,
+					'OrderId'     => $transactionOrderId,
+				];
+				$data['Token'] = $this->getToken($data, $tinkoff_password);
+
+				$url = ($this->test_environment) ? 'https://rest-api-test.tinkoff.ru/v2/'
+					: 'https://securepay.tinkoff.ru/v2/';
+				$url .= 'CheckOrder';
+			}
+
+			// Send request
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send api request', 'start', null,
+				[
+					'request_url'  => $url,
+					'request_data' => $data,
+				]);
+			$request = $this->sendPostRequest($url, $data);
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
+				'response_data' => $request->toArray(),
+			]);
+
+			// Check payment.
+			$paymentOrderId       = $request->get('OrderId', '');
+			$paymentParsedOrderId = (int) explode('_', $paymentOrderId)[0];
+			$paymentStatus        = false;
+			$paymentPaymentId     = false;
+			foreach ($request->get('Payments', []) as $payment)
+			{
+				if ((int) $payment->Success !== 1)
+				{
+					continue;
+				}
+
+				$paymentPaymentId = $payment->PaymentId;
+				$paymentStatus    = $payment->Status;
+				break;
+			}
+
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check payment data', 'start', null, [
+				'payment_Status'          => $paymentStatus,
+				'payment__OrderId '       => $paymentOrderId,
+				'payment__ParsedOrderId ' => $paymentParsedOrderId,
+				'payment_PaymentId'       => $paymentPaymentId,
+				'order_id'                => $order_id,
+				'order_number'            => $order_number,
+			]);
+
+			if ($paymentParsedOrderId !== $order_id)
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_PARTPAY_ERROR_ORDER_NOT_FOUND'), 403);
+			}
+
+			// Check transaction status
+			if (!$credit && !in_array($paymentStatus, ['CONFIRMED', 'AUTHORIZED']))
+			{
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response', 'Incorrect Transaction Status');
+
+				$this->setCallbackResponse();
+
+				return;
+			}
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, false);
+
+			// Add log
+			$addLog = true;
+			foreach ($order->logs as $log)
+			{
+				if ($log['action'] === 'tinkoff_paid' && $log['PaymentId'] === $paymentPaymentId)
+				{
+					$addLog = false;
+					break;
+				}
+			}
+			if ($addLog)
+			{
+				$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Add order log', 'start');
+
+				$model->addLog($order->id, 'tinkoff_paid', [
+					'plugin'    => $this->_name,
+					'group'     => $this->_type,
+					'PaymentId' => $paymentPaymentId,
+					'user_id'   => -1
+				]);
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, false);
+			}
+
+			// Set paid status
+			$paidStatus = (int) $params->get('paid_status', 0);
+			if (!empty($paidStatus))
+			{
+				$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Change order status', 'start', null, [
+					'order_id'      => $order_id,
+					'order_number'  => $order_number,
+					'new_status_id' => $paidStatus,
+				]);
+
+				if (!$model->updateStatus($order->id, $paidStatus, false, -1))
+				{
+					$messages = [];
+					foreach ($model->getErrors() as $error)
+					{
+						$messages[] = ($error instanceof \Exception) ? $error->getMessage() : $error;
+					}
+
+					throw new \Exception(implode(PHP_EOL, $messages));
+				}
+
+
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, false);
+			}
+
+			$debug::addDebug($debugger, $debuggerFile, 'Callback response', 'response');
+
+			$this->setCallbackResponse();
+		}
+		catch (\Throwable $e)
+		{
+			$log = [
+				'context'             => $context,
+				'component'           => $component,
+				'message'             => $e->getMessage(),
+				'error_code'          => $e->getCode(),
+				'transaction_OrderId' => $transactionOrderId,
+				'transaction_status'  => $transactionStatus,
+				'order_id'            => $order_id,
+				'request_url'         => $url,
+				'request_data'        => $data,
+				'response_data'       => $request
+			];
+
+			if ($debug)
+			{
+				$debug::addDebug($debugger, $debuggerFile, $debugAction, 'error',
+					$e->getCode() . ': ' . $e->getMessage(), $log);
+			}
+
+			IntegrationHelper::logError($this->extension, $e->getMessage(), $e->getCode(), $log);
+			if ($order_id)
+			{
+				IntegrationHelper::addOrderLog($component, $order_id, 'tinkoff_callback_error', [
+					'plugin'        => $this->_name,
+					'group'         => $this->_type,
+					'error_code'    => $e->getCode(),
+					'error_message' => $e->getMessage(),
+				]);
+
+			}
+
+			$this->setCallbackResponse();
+		}
+	}
+
+	/**
+	 * Method to set Callback api valid response.
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	protected function setCallbackResponse(): void
+	{
+		echo 'OK';
+		$this->getApplication()->close(200);
 	}
 
 	/**
@@ -273,30 +629,32 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$headers['Content-Type'] = 'application/json';
 		}
 
-		// Send request
-		$http = (new HttpFactory)->getHttp();
-		$http->setOption('transport.curl', [
-			CURLOPT_SSL_VERIFYHOST => 0,
-			CURLOPT_SSL_VERIFYPEER => 0
-		]);
-
 		$data = json_encode($data, JSON_UNESCAPED_UNICODE);
+
+		// Send request
+		$http = (new HttpFactory)->getHttp(
+			['transport.curl' =>
+				 [
+					 CURLOPT_SSL_VERIFYHOST => 0,
+					 CURLOPT_SSL_VERIFYPEER => 0
+				 ]
+			]
+		);
 
 		$response = $http->post($url, $data, $headers);
 		$code     = $response->getStatusCode();
-
-		$stream = $response->getBody();
-		$stream->rewind();
-		$contents = $stream->getContents();
-		$registry = (!empty($contents) && str_starts_with($contents, '{')) ? new Registry($contents) : false;
-
-		if (!$registry || (int) $registry->get('ErrorCode') !== 0)
+		$message  = $response->getReasonPhrase();
+		$contents = (string) $response->getBody();
+		if (empty($contents) && !str_starts_with($contents, '{'))
 		{
-			$message = ($registry) ? $registry->get('Message')
-				: $code . ': ' . $response->getReasonPhrase();
-			$code    = ($registry) ? $registry->get('ErrorCode') : $code;
-
 			throw new \Exception($message, $code);
+		}
+
+		$registry = new Registry($contents);
+		if ((int) $registry->get('ErrorCode') !== 0)
+		{
+
+			throw new \Exception($registry->get('Message', $message), $registry->get('ErrorCode', $code));
 		}
 
 		return $registry;

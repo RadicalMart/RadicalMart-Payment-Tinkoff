@@ -17,6 +17,7 @@ use Joomla\CMS\Application\AdministratorApplication;
 use Joomla\CMS\Application\SiteApplication;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Form;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\ModelInterface;
 use Joomla\Component\RadicalMart\Administrator\Helper\DebugHelper as RadicalMartDebugHelper;
 use Joomla\Component\RadicalMart\Administrator\Helper\LayoutsHelper as RadicalMartLayoutsHelper;
@@ -30,11 +31,14 @@ use Joomla\Component\RadicalMartExpress\Administrator\Helper\ParamsHelper as Rad
 use Joomla\Component\RadicalMartExpress\Administrator\Helper\PluginsHelper as RadicalMartExpressPluginsHelper;
 use Joomla\Component\RadicalMartExpress\Administrator\Helper\UserHelper as RadicalMartExpressUserHelper;
 use Joomla\Component\RadicalMartExpress\Administrator\Model\OrderModel as RadicalMartExpressOrderModel;
+use Joomla\Registry\Registry;
 
 class IntegrationHelper
 {
 	public const RadicalMart = 'com_radicalmart';
 	public const RadicalMartExpress = 'com_radicalmart_express';
+
+	protected static array $_loggers = [];
 
 	/**
 	 * Method to get component from form name
@@ -220,22 +224,6 @@ class IntegrationHelper
 		return false;
 	}
 
-	/**
-	 * Method to get Admin order model.
-	 *
-	 * @param   string  $component  Component name.
-	 *
-	 * @throws \Exception
-	 *
-	 * @return bool|RadicalMartOrderModel|RadicalMartExpressOrderModel|null Admin order model on success, False or null on failure.
-	 *
-	 * @since __DEPLOY_VERSION__
-	 */
-	public static function getOrderModel(string $component): bool|null|RadicalMartOrderModel|RadicalMartExpressOrderModel
-	{
-
-		return self::getModel($component, 'Order', 'Administrator');
-	}
 
 	/**
 	 * Method to get component model.
@@ -270,5 +258,130 @@ class IntegrationHelper
 		}
 
 		return $boot->getMVCFactory()->createModel($name, $prefix, $config);
+	}
+
+	/**
+	 * Method to get Admin order model.
+	 *
+	 * @param   string  $component  Component name.
+	 *
+	 * @throws \Exception
+	 *
+	 * @return bool|RadicalMartOrderModel|RadicalMartExpressOrderModel|null Admin order model on success, False or null on failure.
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	public static function getOrderModel(string $component): bool|null|RadicalMartOrderModel|RadicalMartExpressOrderModel
+	{
+		return self::getModel($component, 'Order', 'Administrator');
+	}
+
+	/**
+	 * Method to add order logs.
+	 *
+	 * @param   string  $component  Component name.
+	 * @param   int     $order_id   Order id.
+	 * @param   array   $logs       Logs data array.
+	 *
+	 * @throws \Exception
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	public static function addOrderLogs(string $component, int $order_id, array $logs): void
+	{
+		$model = self::getOrderModel($component);
+		if (!$model)
+		{
+			return;
+		}
+
+		if ($component === self::RadicalMart)
+		{
+			$model->addLogs($order_id, $logs);
+
+			return;
+		}
+
+		foreach ($logs as $log)
+		{
+			if (empty($log['action']))
+			{
+				continue;
+			}
+			$action = $log['action'];
+			unset($log['action']);
+
+			$model->addLog($order_id, $action, $log);
+		}
+	}
+
+	/**
+	 * Method to add order log.
+	 *
+	 * @param   string  $component  Component name.
+	 * @param   int     $order_id   Order id.
+	 * @param   string  $action     Action name.
+	 * @param   array   $data       Log data.
+	 *
+	 * @throws \Exception
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	public static function addOrderLog(string $component, int $order_id, string $action, array $data): void
+	{
+		$model = self::getOrderModel($component);
+		if (!$model)
+		{
+			return;
+		}
+
+		$model->addLog($order_id, $action, $data);
+	}
+
+	/**
+	 * Method to log error.
+	 *
+	 * @param   string|null  $extension  Extension name.
+	 * @param   string|null  $message    Error message
+	 * @param   int          $code       Error code.
+	 * @param   array        $data       Error advanced data.
+	 *
+	 * @throws \Exception
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	public static function logError(?string $extension = null, ?string $message = null, int $code = 0, array $data = []): void
+	{
+		if (empty($extension))
+		{
+			$extension = Factory::getApplication()->getInput()->getCmd('option', 'joomla');
+		}
+
+		$category = $extension . '.error';
+		if (!isset(self::$_loggers[$category]))
+		{
+			Log::addLogger([
+				'text_file'         => $category . '.php',
+				'text_entry_format' => "{DATETIME}\t{CLIENTIP}\t{MESSAGE}\t{PRIORITY}"],
+				Log::ALL,
+				[$category]
+			);
+
+			self::$_loggers[$category] = true;
+		}
+
+		$entry = [
+			'code' => $code,
+		];
+		if (!empty($message))
+		{
+			$entry['message'] = $message;
+		}
+		if (!empty($data))
+		{
+			$entry['data'] = $data;
+		}
+
+		Log::add((new Registry($entry))->toString(), Log::ERROR, $category);
 	}
 }

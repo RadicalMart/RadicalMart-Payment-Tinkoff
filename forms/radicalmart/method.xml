@@ -16,14 +16,6 @@
 				   layout="joomla.form.field.list-fancy-select">
 				<option value="">COM_RADICALMART_STATUS_SELECT</option>
 			</field>
-			<field name="tinkoff_test" type="radio"
-				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST"
-				   default="1"
-				   class="btn-group btn-group-yesno"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_DESCRIPTION">
-				<option value="1">JYES</option>
-				<option value="0">JNO</option>
-			</field>
 			<field name="tinkoff_credit" type="radio"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_CREDIT"
 				   default="0"
@@ -53,10 +45,5 @@
 				<option value="patent">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SNO_OPTION_PATENT</option>
 			</field>
 		</fields>
-	</fieldset>
-	<fieldset name="settings_urls" tab="settings" label="COM_RADICALMART_PAYMENT_METHOD_URLS">
-		<field type="urls_payment"
-			   hiddenLabel="true"
-			   plugin="tinkoff"/>
 	</fieldset>
 </form>
