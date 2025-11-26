@@ -38,6 +38,13 @@ class IntegrationHelper
 	public const RadicalMart = 'com_radicalmart';
 	public const RadicalMartExpress = 'com_radicalmart_express';
 
+	/**
+	 * Loggers initials cache.
+	 *
+	 * @var array
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
 	protected static array $_loggers = [];
 
 	/**
@@ -224,7 +231,6 @@ class IntegrationHelper
 		return false;
 	}
 
-
 	/**
 	 * Method to get component model.
 	 *
@@ -341,23 +347,17 @@ class IntegrationHelper
 	/**
 	 * Method to log error.
 	 *
-	 * @param   string|null  $extension  Extension name.
-	 * @param   string|null  $message    Error message
-	 * @param   int          $code       Error code.
-	 * @param   array        $data       Error advanced data.
-	 *
-	 * @throws \Exception
+	 * @param   string       $category  Log category name.
+	 * @param   int          $priority  Message priority.
+	 * @param   string|null  $message   Message text.
+	 * @param   array        $data      Message advanced data.
+	 * @param   int          $code      Message code.
 	 *
 	 * @since __DEPLOY_VERSION__
 	 */
-	public static function logError(?string $extension = null, ?string $message = null, int $code = 0, array $data = []): void
+	public static function addLog(string  $category, int $priority = Log::INFO,
+	                              ?string $message = null, array $data = [], int $code = 0): void
 	{
-		if (empty($extension))
-		{
-			$extension = Factory::getApplication()->getInput()->getCmd('option', 'joomla');
-		}
-
-		$category = $extension . '.error';
 		if (!isset(self::$_loggers[$category]))
 		{
 			Log::addLogger([
@@ -370,18 +370,30 @@ class IntegrationHelper
 			self::$_loggers[$category] = true;
 		}
 
-		$entry = [
-			'code' => $code,
-		];
-		if (!empty($message))
-		{
-			$entry['message'] = $message;
-		}
 		if (!empty($data))
 		{
+			$entry = [];
+			if (!empty($code))
+			{
+				$entry['code'] = $code;
+			}
+
+			if (!empty($message))
+			{
+				$entry['message'] = $message;
+			}
+
 			$entry['data'] = $data;
+
+			$entry = (new Registry($entry))->toString();
 		}
 
-		Log::add((new Registry($entry))->toString(), Log::ERROR, $category);
+		else
+		{
+			$entry = (!empty($message)) ? $message : '';
+		}
+
+
+		Log::add($entry, $priority, $category);
 	}
 }

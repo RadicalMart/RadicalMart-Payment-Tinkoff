@@ -12,6 +12,7 @@
 \defined('_JEXEC') or die;
 
 use Joomla\CMS\Application\AdministratorApplication;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Installer\Installer;
 use Joomla\CMS\Installer\InstallerAdapter;
@@ -22,6 +23,7 @@ use Joomla\Database\DatabaseDriver;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 use Joomla\Filesystem\Path;
+use Joomla\Registry\Registry;
 
 return new class () implements ServiceProviderInterface {
 	public function register(Container $container)
@@ -62,7 +64,9 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @since  __DEPLOY_VERSION__
 				 */
-				protected array $updateMethods = [];
+				protected array $updateMethods = [
+					'update20'
+				];
 
 				/**
 				 * Constructor.
@@ -218,24 +222,24 @@ return new class () implements ServiceProviderInterface {
 
 							if (!$context = file_get_contents($src))
 							{
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_DOWNLOAD'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_DOWNLOAD'), -1);
 							}
 							if (!file_put_contents($dest, $context))
 							{
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_DOWNLOAD'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_DOWNLOAD'), -1);
 							}
 
 							// Install extension
 							if (!$package = InstallerHelper::unpack($dest, true))
 							{
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_INSTALL'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
 							}
 
 							if (!$package['type'])
 							{
 								InstallerHelper::cleanupInstall('', $package['extractdir']);
 
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_INSTALL'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
 							}
 
 							$installer = Installer::getInstance();
@@ -244,14 +248,14 @@ return new class () implements ServiceProviderInterface {
 							{
 								InstallerHelper::cleanupInstall('', $package['extractdir']);
 
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_INSTALL'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
 							}
 
 							if (!$installer->install($package['dir']))
 							{
 								InstallerHelper::cleanupInstall('', $package['extractdir']);
 
-								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_PAYSELECTION_ERROR_FISCALIZATION_INSTALL'), -1);
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
 							}
 
 							InstallerHelper::cleanupInstall('', $package['extractdir']);
@@ -260,6 +264,72 @@ return new class () implements ServiceProviderInterface {
 					catch (Exception $e)
 					{
 						$this->app->enqueueMessage($e->getMessage(), 'error');
+					}
+				}
+
+				protected function update20(): void
+				{
+					$db      = $this->db;
+					$mapping = [
+						'tinkoff_tid'       => 'terminal_key',
+						'tinkoff_password'  => 'terminal_password',
+						'tinkoff_sno'       => 'taxation',
+						'payment_available' => 'statuses_available',
+						'paid_status'       => 'statuses_paid',
+					];
+					if (ComponentHelper::isEnabled('com_radicalmart'))
+					{
+						$query = $db->createQuery()
+							->select(['id', 'params'])
+							->from($db->quoteName('#__radicalmart_payment_methods'))
+							->where($db->quoteName('plugin') . ' = ' . $db->quote('tinkoff'));
+						foreach ($db->setQuery($query)->loadObjectList() as $method)
+						{
+							$method->params = new Registry($method->params);
+							$update         = false;
+							foreach ($mapping as $old => $new)
+							{
+								if ($method->params->exists($old))
+								{
+									$method->params->set($new, $method->params->get($old));
+									$method->params->remove($old);
+									$update = true;
+								}
+							}
+
+							if ($update)
+							{
+								$method->params = $method->params->toString();
+								$db->updateObject('#__radicalmart_payment_methods', $method, 'id');
+							}
+						}
+					}
+
+					if (ComponentHelper::isEnabled('com_radicalmart_express'))
+					{
+						$query             = $db->createQuery()
+							->select(['extension_id', 'params'])
+							->from($db->quoteName('#__extensions'))
+							->where($db->quoteName('element') . ' = ' . $db->quote('com_radicalmart_express'));
+						$extension         = $db->setQuery($query, 0, 1)->loadObject();
+						$extension->params = new Registry($extension->params);
+						$update            = false;
+						foreach ($mapping as $old => $new)
+						{
+							if ($extension->params->exists($old))
+							{
+
+								$extension->params->set('payment_method_params.' . $new, $extension->params->get($old));
+								$extension->params->remove($old);
+								$update = true;
+							}
+						}
+
+						if ($update)
+						{
+							$extension->params = $extension->params->toString();
+							$db->updateObject('#__extensions', $extension, 'extension_id');
+						}
 					}
 				}
 			});

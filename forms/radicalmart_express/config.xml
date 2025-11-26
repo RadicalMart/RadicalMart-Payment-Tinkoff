@@ -1,33 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<form addfieldprefix="Joomla\Component\RadicalMart\Administrator\Field">
-	<fieldset name="primary" tab="sidebar">
-		<fields name="params">
+<form addfieldprefix="Joomla\Component\RadicalMartExpress\Administrator\Field">
+	<fieldset name="payment_api" label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT">
+		<fields name="payment_method_params">
 			<field name="payment_type" type="list"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE"
 				   default="acquiring">
 				<option value="acquiring">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_ACQUIRING</option>
 				<option value="credit">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_CREDIT</option>
 			</field>
-		</fields>
-	</fieldset>
-	<fieldset name="settings_api" tab="settings"
-			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_API">
-		<fields name="params">
 			<field name="terminal_key" type="text"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY"
 				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY_DESCRIPTION"
 				   autocomplete="false"
-				   showon="params.payment_type:acquiring"/>
+				   showon="payment_method_params.payment_type:acquiring"/>
 			<field name="terminal_password" type="password"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD"
 				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD_DESCRIPTION"
 				   autocomplete="false"
-				   showon="params.payment_type:acquiring"/>
+				   showon="payment_method_params.payment_type:acquiring"/>
 			<field name="taxation" type="list"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION"
 				   default="osn"
 				   layout="joomla.form.field.list-fancy-select"
-				   showon="params.payment_type:acquiring">
+				   showon="payment_method_params.payment_type:acquiring">
 				<option value="osn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_OSN</option>
 				<option value="usn_income">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_USN_INCOME</option>
 				<option value="usn_income_outcome">
@@ -39,33 +34,14 @@
 			</field>
 		</fields>
 	</fieldset>
-	<fieldset name="settings_statuses" tab="settings"
-			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES">
-		<fields name="params">
-			<field name="statuses_available" type="statuses"
-				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_AVAILABLE"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_AVAILABLE_DESCRIPTION"
-				   hint=" "
-				   multiple="true"
-				   required="true"
-				   layout="joomla.form.field.list-fancy-select"/>
-			<field name="statuses_paid" type="statuses"
-				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID_DESCRIPTION"
-				   required="true"
-				   layout="joomla.form.field.list-fancy-select">
-				<option value="">COM_RADICALMART_STATUS_SELECT</option>
-			</field>
-		</fields>
-	</fieldset>
-	<fieldset name="settings_test" tab="settings"
+	<fieldset name="payment_test" tab="settings"
 			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST">
-		<fields name="params">
+		<fields name="payment_method_params">
 			<field name="test_acquiring_environment" type="radio"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_ENVIRONMENT"
 				   class="btn-group btn-group-yesno"
 				   default="0"
-				   showon="params.payment_type:acquiring">
+				   showon="payment_method_params.payment_type:acquiring">
 				<option value="1">JYES</option>
 				<option value="0">JNO</option>
 			</field>
@@ -73,7 +49,7 @@
 				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_ENVIRONMENT_DESCRIPTION"
 				   hiddenLabel="true"
 				   class="alert alert-warning"
-				   showon="params.payment_type:acquiring"/>
+				   showon="payment_method_params.payment_type:acquiring"/>
 		</fields>
 	</fieldset>
 </form>
