@@ -37,8 +37,8 @@
 	<fieldset name="payment_test" tab="settings"
 			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST">
 		<fields name="payment_method_params">
-			<field name="test_acquiring_environment" type="radio"
-				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_ENVIRONMENT"
+			<field name="test_acquiring" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING"
 				   class="btn-group btn-group-yesno"
 				   default="0"
 				   showon="payment_method_params.payment_type:acquiring">
@@ -46,7 +46,7 @@
 				<option value="0">JNO</option>
 			</field>
 			<field type="note"
-				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_ENVIRONMENT_DESCRIPTION"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_DESCRIPTION"
 				   hiddenLabel="true"
 				   class="alert alert-warning"
 				   showon="payment_method_params.payment_type:acquiring"/>

@@ -13,6 +13,7 @@ namespace Joomla\Plugin\RadicalMartPayment\Tinkoff\Extension;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Form\Form;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\Plugin\CMSPlugin;
@@ -20,6 +21,7 @@ use Joomla\Component\RadicalMart\Site\Model\PaymentModel as RadicalMartPaymentMo
 use Joomla\Component\RadicalMartExpress\Site\Model\PaymentModel as RadicalMartExpressPaymentModel;
 use Joomla\Event\SubscriberInterface;
 use Joomla\Http\HttpFactory;
+use Joomla\Http\Response;
 use Joomla\Plugin\RadicalMartPayment\Tinkoff\Helper\IntegrationHelper;
 use Joomla\Registry\Registry;
 
@@ -64,6 +66,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	{
 		return [
 			'onRadicalMartGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
+			'onRadicalMartGetOrderForm'           => 'onGetOrderForm',
 			'onRadicalMartCheckOrderPay'          => 'onCheckOrderPay',
 			'onRadicalMartPaymentPay'             => 'onPaymentPay',
 			'onRadicalMartPaymentCallback'        => 'onPaymentCallback',
@@ -104,14 +107,9 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		// Clean secret param
 		$method->params->set('terminal_key', '');
 		$method->params->set('terminal_password', '');
-
-
-		// Add RadicalMartExpress payment enable statuses
-		if ($component === IntegrationHelper::RadicalMartExpress)
-		{
-			$method->params->set('statuses_available', [1]);
-			$method->params->set('statuses_paid', 2);
-		}
+		$method->params->set('shop_id', '');
+		$method->params->set('showcase_id', '');
+		$method->params->set('showcase_password', '');
 
 		// Set order
 		$method->order              = new \stdClass();
@@ -120,6 +118,59 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		$method->order->code        = $method->code;
 		$method->order->description = $method->description;
 		$method->order->price       = [];
+	}
+
+	/**
+	 * Prepare RadicalMart order forms.
+	 *
+	 * @param   string        $context   Context selector string.
+	 * @param   Form          $form      Order form object.
+	 * @param   array         $formData  Form data array.
+	 * @param   array         $products  Shipping method data.
+	 * @param   object        $shipping  Shipping method data.
+	 * @param   object|false  $payment   Payment method data.
+	 * @param   array         $currency  Order currency data.
+	 *
+	 * @throws \Exception
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	public function onGetOrderForm(string $context, Form $form, array $formData,
+	                               array  $products, object $shipping, object|bool $payment,
+	                               array  $currency): void
+	{
+		$formName = $form->getName();
+		if (!in_array($formName, ['com_radicalmart.checkout', 'com_radicalmart.order', 'com_radicalmart.order_site']))
+		{
+			return;
+		}
+
+		$component = IntegrationHelper::getComponentFromForm($form);
+		if (!$component)
+		{
+			return;
+		}
+
+		$order          = new \stdClass();
+		$order->payment = $payment;
+
+		if (!$this->checkOrderPaymentPlugin($order))
+		{
+			return;
+		}
+
+		$params = $this->getPaymentMethodParams($component, $payment->id);
+
+		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
+		{
+			$form->setFieldAttribute('promo_code', 'context', $context, 'payment');
+			$form->setFieldAttribute('promo_code', 'codes',
+				(new Registry($params->get('promo_codes')))->toString(), 'payment');
+		}
+		else
+		{
+			$form->removeField('promo_code', 'payment');
+		}
 	}
 
 	/**
@@ -151,7 +202,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		}
 
 		// Get params
-		$params = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($order->payment->id);
+		$params = $this->getPaymentMethodParams($component, $order->payment->id);
 
 		// Check order status
 		if (empty($order->status->id) || !in_array($order->status->id, $params->get('statuses_available', [])))
@@ -159,11 +210,15 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			return false;
 		}
 
+
 		// Check access params
 		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
 		{
-			// TODO Credit
-			return false;
+			if (empty($params->get('shop_id'))
+				|| empty($params->get('showcase_id')) || empty($params->get('showcase_password')))
+			{
+				return false;
+			}
 		}
 		else
 		{
@@ -221,7 +276,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
 
 			// Get params
-			$params      = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($order->payment->id);
+			$params      = $this->getPaymentMethodParams($component, $order->payment->id);
 			$paymentType = $params->get('payment_type', self::PaymentTypeAcquiring);
 
 			// Prepare request data
@@ -241,10 +296,11 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 				'request_headers' => $request['headers'],
 			];
 			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send api request', 'start', null, $debugData);
-			$request_response = $this->sendPostRequest($request['url'], $request['data'], $request['headers']);
+			$response = $this->sendPostRequest($request['url'], $request['data'], $request['headers']);
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
-				'response_data' => $request_response->toArray(),
+				'response_data' => $response->toArray(),
 			]);
+
 
 			$log = [
 				'plugin'       => $this->_name,
@@ -253,12 +309,15 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			];
 			if ($paymentType === self::PaymentTypeCredit)
 			{
-				$link = false;
+				$log['orderNumber'] = $request['data']['orderNumber'];
+				$log['bidId']       = $response->get('id');
+				$link               = $response->get('link');
 			}
 			else
 			{
-				$log['PaymentId'] = $request_response->get('PaymentId');
-				$link             = $request_response->get('PaymentURL', false);
+				$log['OrderId']   = $request['data']['OrderId'];
+				$log['PaymentId'] = $response->get('PaymentId');
+				$link             = $response->get('PaymentURL', false);
 			}
 
 			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Add order log', 'start',
@@ -341,7 +400,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 				$debugData, null, false);
 
 			$paymentType = false;
-			if (!empty(($input['Status']) && !empty($input['PaymentId'])))
+			if (!empty($input['Status']) && !empty($input['PaymentId']))
 			{
 				$paymentType = self::PaymentTypeAcquiring;
 			}
@@ -406,7 +465,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	}
 
 	/**
-	 * Method to set post request.
+	 * Method to set POST request.
 	 *
 	 * @param   string  $url      Request url.
 	 * @param   array   $data     Request data.
@@ -437,20 +496,98 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			]
 		);
 
-		$response = $http->post($url, $data, $headers);
+		return $this->parseResponse($http->post($url, $data, $headers));
+	}
+
+	/**
+	 * Method to set GET request.
+	 *
+	 * @param   string  $url      Request url.
+	 * @param   array   $headers  Request headers.
+	 *
+	 * @throws \Exception
+	 *
+	 * @return Registry Request response Registry object.
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	protected function sendGetRequest(string $url, array $headers = []): Registry
+	{
+		if (!isset($headers['Content-Type']))
+		{
+			$headers['Content-Type'] = 'application/json';
+		}
+
+		// Send request
+		$http = (new HttpFactory)->getHttp(
+			['transport.curl' =>
+				 [
+					 CURLOPT_SSL_VERIFYHOST => 0,
+					 CURLOPT_SSL_VERIFYPEER => 0
+				 ]
+			]
+		);
+
+		return $this->parseResponse($http->get($url, $headers));
+	}
+
+	/**
+	 * Method to parse api resonse.
+	 *
+	 * @param   Response  $response  Http Response
+	 *
+	 * @throws \Exception
+	 *
+	 * @return Registry
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	protected function parseResponse(Response $response): Registry
+	{
 		$code     = $response->getStatusCode();
 		$message  = $response->getReasonPhrase();
 		$contents = (string) $response->getBody();
-		if (empty($contents) && !str_starts_with($contents, '{'))
+		if (empty($contents) || !str_starts_with($contents, '{'))
 		{
+			if (!empty($contents))
+			{
+				$message = $contents;
+			}
 			throw new \Exception($message, $code);
 		}
 
 		$registry = new Registry($contents);
 		if ((int) $registry->get('ErrorCode') !== 0)
 		{
-
 			throw new \Exception($registry->get('Message', $message), $registry->get('ErrorCode', $code));
+		}
+		elseif (!empty($registry->get('errors')) || !empty($registry->get('validations')))
+		{
+			$messages = [];
+
+			if (!empty($registry->get('errors')))
+			{
+				foreach ($registry->get('errors') as $error)
+				{
+					$messages[] = $error;
+				}
+			}
+
+			if (!empty($registry->get('validations')))
+			{
+				$validations = $registry->get('validations');
+				if (!is_array($validations))
+				{
+					$validations = (new Registry($validations))->toArray();
+				}
+				$messages[] = 'Validations Errors:';
+				foreach ($validations as $field => $error)
+				{
+					$messages[] = $field . ': ' . $error;
+				}
+			}
+
+			throw new \Exception(implode(PHP_EOL, $messages), $code);
 		}
 
 		return $registry;
@@ -468,6 +605,51 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	protected function checkOrderPaymentPlugin(object $order): bool
 	{
 		return ((!empty($order->payment) && !empty($order->payment->plugin)) && $order->payment->plugin === $this->_name);
+	}
+
+	/**
+	 * Method to get Payment method params.
+	 *
+	 * @param   string  $component  Component selector string.
+	 * @param   int     $method_id  Payment method id.
+	 *
+	 * @return Registry Payment method params
+	 *
+	 * @since __DEPLOY_VERSION__
+	 */
+	protected function getPaymentMethodParams(string $component, int $method_id): Registry
+	{
+		$params = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($method_id);
+
+		// Trim params
+		foreach (['terminal_key', 'terminal_password', 'shop_id', 'showcase_id', 'showcase_password'] as $path)
+		{
+			$params->set($path, trim($params->get($path, '')));
+		}
+
+		// Add RadicalMartExpress payment enable statuses
+		if ($component === IntegrationHelper::RadicalMartExpress)
+		{
+			$params->set('statuses_available', [1]);
+			$params->set('statuses_paid', 2);
+		}
+
+		if (!empty($params->get('promo_codes')))
+		{
+			if (!is_array($params->get('promo_codes')))
+			{
+				$codes = [];
+				foreach ((new Registry($params->get('promo_codes')))->toArray() as $promo_code)
+				{
+					$codes[trim($promo_code['promo_value'])] = trim($promo_code['promo_label']);
+				}
+
+				$params->set('promo_codes', $codes);
+			}
+		}
+
+
+		return $params;
 	}
 
 	/**
@@ -495,15 +677,125 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @since __DEPLOY_VERSION__
 	 */
-
 	protected function getCreditPayRequest(string $component, object $order, array $links, Registry $params): array
 	{
+		if (empty($params->get('shop_id'))
+			|| empty($params->get('showcase_id')) || empty($params->get('showcase_password')))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
+		}
+
+		$test = ((int) $params->get('test_credit', 0) === 1);
+		$url  = ($test)
+			? 'https://forma.tinkoff.ru/api/partners/v2/orders/create-demo'
+			: 'https://forma.tbank.ru/api/partners/v2/orders/create';
+
+		$orderNumber = $order->number;
+		if ($test)
+		{
+			$orderNumber .= '_||_' . time();
+		}
+
+		$promoCode = (!empty($order->formData) && !empty($order->formData['payment'])
+			&& !empty($order->formData['payment']['promo_code'])) ? $order->formData['payment']['promo_code'] : 'undefined';
+
+		$promoCodes = $params->get('promo_codes', []);
+		if (!isset($promoCodes[$promoCode]))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_PROMO_CODE_NOT_FOUND'), 404);
+		}
+
 		$result = [
-			'url'     => false,
-			'data'    => [],
+			'url'     => $url,
+			'data'    => [
+				'shopId'      => $params->get('shop_id'),
+				'showcaseId'  => $params->get('showcase_id'),
+				'sum'         => $order->total['final'],
+				'items'       => [],
+				'orderNumber' => $orderNumber,
+				'promoCode'   => $promoCode,
+				'webhookURL'  => $links['callback'],
+				'successURL'  => $links['success'] . '/' . $order->number,
+				'failURL'     => $links['error'] . '/' . $order->number,
+			],
 			'headers' => [],
 		];
 
+
+		if (!empty($order->receipt))
+		{
+			$result['data']['sum'] = $order->receipt->amount;
+			foreach ($order->receipt->items as $item)
+			{
+				$result['data']['items'][] = [
+					'name'     => $item['name'],
+					'quantity' => $item['quantity'],
+					'price'    => $item['price_discount'],
+				];
+			}
+		}
+		else
+		{
+			foreach ($order->products as $product)
+			{
+				$result['data']['items'][] = [
+					'name'     => $product->title,
+					'quantity' => $product->order['quantity'],
+					'price'    => $product->order['final'],
+				];
+			}
+			if (!empty($order->shipping) && !empty($order->shipping->order)
+				&& !empty($order->shipping->order->price)
+				&& (!empty($order->shipping->order->price['base']) || !empty($order->shipping->order->price['final'])))
+			{
+
+				$shipping = $order->shipping;
+				$price    = (!empty($shipping->order->price['base']))
+					? $shipping->order->price['base'] : $shipping->order->price['final'];
+
+				$result['data']['items'][] = [
+					'name'     => (!empty($shipping->order->title)) ? $shipping->order->title : $shipping->title,
+					'quantity' => 1,
+					'price'    => $price,
+				];
+			}
+		}
+
+		if (!empty($order->contacts))
+		{
+			$contact = [];
+			$fio     = [];
+			if (!empty($order->contacts['first_name']))
+			{
+				$fio['firstName'] = $order->contacts['first_name'];
+			}
+			if (!empty($order->contacts['last_name']))
+			{
+				$fio['lastName'] = $order->contacts['last_name'];
+			}
+			if (!empty($order->contacts['second_name']))
+			{
+				$fio['middleName'] = $order->contacts['second_name'];
+			}
+			if (count($fio) > 0)
+			{
+				$contact['fio'] = $fio;
+			}
+
+			if (!empty($order->contacts['phone']))
+			{
+				$contact['mobilePhone'] = $order->contacts['phone'];
+			}
+			if (!empty($order->contacts['email']))
+			{
+				$contact['email'] = $order->contacts['email'];
+			}
+
+			if (count($contact) > 0)
+			{
+				$result['data']['values'] = ['contact' => $contact];
+			}
+		}
 
 		return $result;
 	}
@@ -525,8 +817,207 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	protected function getCreditCallback(string $component, int &$order_id, string &$debugAction, array &$debugData,
 	                                     array  $input, RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model)
 	{
-		// TODO Credit
-		throw new \Exception('WORK IN PROGRESS', 500);
+		$debug        = IntegrationHelper::getDebugHelper($component);
+		$debugger     = 'payment.callback';
+		$debuggerFile = 'site_payment_controller.php';
+
+		$paidStatuses = ['signed'];
+		$inputStatus  = (!empty($input['status'])) ? (string) $input['status'] : false;
+		$debugData    = [
+			'input_status'  => $input['status'],
+			'paid_statuses' => $paidStatuses,
+		];
+
+		// Check input data
+		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check input data', 'start', null,
+			$debugData, null, false);
+		if ($inputStatus && !in_array($inputStatus, $paidStatuses))
+		{
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response',
+				Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_INPUT_STATUS'));
+
+			$this->setCallbackResponse();
+
+			return;
+		}
+
+		if (empty($input['id']))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND!'), 404);
+		}
+
+		$test         = (!empty($input['demo']));
+		$order_number = ($test) ? explode('_||_', $input['id'])[0] : $input['id'];
+		if (empty($order_number))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND!'), 404);
+		}
+
+		// Get order
+		$debugData = [
+			'input_id'     => $input['id'],
+			'order_number' => $order_number,
+		];
+		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Get order', 'start', null, $debugData);
+
+		if (!$order = $model->getOrder($order_number))
+		{
+			$messages = [];
+			foreach ($model->getErrors() as $error)
+			{
+				$messages[] = ($error instanceof \Exception) ? $error->getMessage() : $error;
+			}
+
+			if (empty($messages))
+			{
+				$messages[] = Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND');
+			}
+
+			$order_id = 0;
+
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'error', null, [
+				'messages' => $messages,
+			]);
+			throw new \Exception(implode(PHP_EOL, $messages), 500);
+		}
+
+		$order_id     = (int) $order->id;
+		$order_number = $order->number;
+		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
+			'order_id'     => $order_id,
+			'order_number' => $order_number,
+		]);
+
+		// Check order payment method
+		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check payment method', 'start', null, null,
+			null, false);
+		if (!$this->checkOrderPaymentPlugin($order))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_PLUGIN'));
+		}
+
+		// Check params
+		$params = $this->getPaymentMethodParams($component, $order->payment->id);
+		if ($params->get('payment_type', self::PaymentTypeAcquiring) !== self::PaymentTypeCredit)
+		{
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response',
+				Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_PAYMENT_TYPE'));
+
+			$this->setCallbackResponse();
+
+			return;
+		}
+		if (empty($params->get('shop_id'))
+			|| empty($params->get('showcase_id')) || empty($params->get('showcase_password')))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
+		}
+		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
+
+		// Validate request
+		$url = 'https://forma.tbank.ru/api/partners/v2/orders/';
+		$url .= ($test) ? $input['id'] : $order_number;
+		$url .= '/info';
+
+		$token = $params->get('showcase_id') . ':' . $params->get('showcase_password');
+		if ($test)
+		{
+			$token = 'demo-' . $token;
+		}
+		$token = base64_encode($token);
+
+		$debugData = [
+			'request_url' => $url,
+			'token'       => $token,
+		];
+		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send validate api request', 'start', null, $debugData);
+
+		$response = $this->sendGetRequest($url, [
+			'Authorization' => 'Basic ' . $token,
+		]);
+
+		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
+			'response_data' => $response->toArray(),
+		]);
+
+		// Check payment
+		$paymentId       = $response->get('id', '');
+		$paymentParsedId = (!empty($response->get('demo'))) ? explode('_||_', $paymentId)[0] : $paymentId;
+
+		$paymentStatus = (!empty($response->get('status'))) ? (string) $response->get('status') : false;
+
+		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check payment data', 'start', null, [
+			'payment_status'         => $paymentStatus,
+			'payment_id '            => $paymentId,
+			'payment_ParsedOrderId ' => $paymentParsedId,
+			'order_id'               => $order_id,
+			'order_number'           => $order_number,
+		]);
+
+		if ($paymentParsedId !== $order_number)
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_PARTPAY_ERROR_ORDER_NOT_FOUND'), 403);
+		}
+
+		if (!in_array($paymentStatus, $paidStatuses))
+		{
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response',
+				Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_INPUT_STATUS'));
+
+			$this->setCallbackResponse();
+
+			return;
+		}
+
+		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
+
+		// Add order log
+		$addLog = true;
+		$uid    = $paymentId . '_' . $response->get('created_at', '');
+		foreach ($order->logs as $log)
+		{
+			if ($log['action'] === 'tinkoff_paid' && $log['credit_uid'] === $uid)
+			{
+				$addLog = false;
+				break;
+			}
+		}
+		if ($addLog)
+		{
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Add order log', 'start', null, null, null, false);
+
+			$model->addLog($order->id, 'tinkoff_paid', [
+				'plugin'    => $this->_name,
+				'group'     => $this->_type,
+				'credit_id' => $uid,
+				'user_id'   => -1
+			]);
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
+		}
+
+		// Set paid status
+		$paid = (int) $params->get('statuses_paid', 0);
+		if (!empty($paid) && (int) $order->status->id !== $paid)
+		{
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Change order status', 'start', null, [
+				'order_id'      => $order_id,
+				'order_number'  => $order_number,
+				'new_status_id' => $paid,
+			]);
+
+			if (!$model->updateStatus($order->id, $paid, false, -1))
+			{
+				$messages = [];
+				foreach ($model->getErrors() as $error)
+				{
+					$messages[] = ($error instanceof \Exception) ? $error->getMessage() : $error;
+				}
+
+				throw new \Exception(implode(PHP_EOL, $messages));
+			}
+
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
+		}
 	}
 
 	/**
@@ -550,7 +1041,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
 		}
 
-		$url = ((int) $params->get('test_acquiring_environment', 0) === 1)
+		$url = ((int) $params->get('test_acquiring', 0) === 1)
 			? 'https://rest-api-test.tinkoff.ru/v2/'
 			: 'https://securepay.tinkoff.ru/v2/';
 		$url .= 'Init';
@@ -627,11 +1118,11 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	/**
 	 * Method to set Acquiring callback result.
 	 *
-	 * @param   string                                                   $component    Component selector string.
-	 * @param   int                                                      $order_id     Current order id.
-	 * @param   string                                                   $debugAction  Current debug action.
-	 * @param   array                                                    $debugData    Current debug data.
-	 * @param   array                                                    $input        Input data.
+	 * @param   string                                                  $component    Component selector string.
+	 * @param   int                                                     $order_id     Current order id.
+	 * @param   string                                                  $debugAction  Current debug action.
+	 * @param   array                                                   $debugData    Current debug data.
+	 * @param   array                                                   $input        Input data.
 	 * @param   RadicalMartExpressPaymentModel|RadicalMartPaymentModel  $model        RadicalMart model.
 	 *
 	 * @throws \Exception
@@ -719,11 +1210,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		}
 
 		// Check params
-		$params = IntegrationHelper::getParamsHelper($component)::getPaymentMethodsParams($order->payment->id);
-		if (empty($params->get('terminal_key')) || empty($params->get('terminal_password')))
-		{
-			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
-		}
+		$params = $this->getPaymentMethodParams($component, $order->payment->id);
 		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
 		{
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response',
@@ -732,6 +1219,10 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$this->setCallbackResponse();
 
 			return;
+		}
+		if (empty($params->get('terminal_key')) || empty($params->get('terminal_password')))
+		{
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_API_ACCESS'), 403);
 		}
 		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
 
@@ -757,7 +1248,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		];
 		$data['Token'] = $this->getAcquiringToken($data, $params->get('terminal_password'));
 
-		$url = ((int) $params->get('test_acquiring_environment', 0) === 1)
+		$url = ((int) $params->get('test_acquiring', 0) === 1)
 			? 'https://rest-api-test.tinkoff.ru/v2/'
 			: 'https://securepay.tinkoff.ru/v2/';
 		$url .= 'CheckOrder';
@@ -768,19 +1259,18 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		];
 		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Send validate api request', 'start', null, $debugData);
 
-		$request = $this->sendPostRequest($url, $data);
+		$response = $this->sendPostRequest($url, $data);
 
 		$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
-			'response_data' => $request->toArray(),
+			'response_data' => $response->toArray(),
 		]);
 
-
-		// Check payment.
-		$paymentOrderId       = $request->get('OrderId', '');
+		// Check payment
+		$paymentOrderId       = $response->get('OrderId', '');
 		$paymentParsedOrderId = (int) explode('_', $paymentOrderId)[0];
 		$paymentStatus        = false;
 		$paymentPaymentId     = false;
-		foreach ($request->get('Payments', []) as $payment)
+		foreach ($response->get('Payments', []) as $payment)
 		{
 			if ((int) $payment->Success !== 1)
 			{
