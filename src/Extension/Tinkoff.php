@@ -66,15 +66,16 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	{
 		return [
 			'onRadicalMartGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
-			'onRadicalMartGetOrderForm'           => 'onGetOrderForm',
+			'onRadicalMartGetOrderForm'           => 'onRadicalMartGetOrderForm',
+			'onRadicalMartGetOrderLogs'           => 'onGetOrderLogs',
 			'onRadicalMartCheckOrderPay'          => 'onCheckOrderPay',
 			'onRadicalMartPaymentPay'             => 'onPaymentPay',
 			'onRadicalMartPaymentCallback'        => 'onPaymentCallback',
 
-//			'onRadicalMartExpressGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
-//			'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
-//			'onRadicalMartExpressPaymentCallback'        => 'onPaymentCallback',
-//			'onRadicalMartExpressPrepareConfigForm'      => 'onRadicalMartExpressPrepareConfigForm',
+			'onRadicalMartExpressGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
+			'onRadicalMartExpressGetOrderLogs'           => 'onGetOrderLogs',
+			'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
+			'onRadicalMartExpressPaymentCallback'        => 'onPaymentCallback',
 		];
 	}
 
@@ -135,9 +136,9 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @since __DEPLOY_VERSION__
 	 */
-	public function onGetOrderForm(string $context, Form $form, array $formData,
-	                               array  $products, object $shipping, object|bool $payment,
-	                               array  $currency): void
+	public function onRadicalMartGetOrderForm(string $context, Form $form, array $formData,
+	                                          array  $products, object $shipping, object|bool $payment,
+	                                          array  $currency): void
 	{
 		$formName = $form->getName();
 		if (!in_array($formName, ['com_radicalmart.checkout', 'com_radicalmart.order', 'com_radicalmart.order_site']))
@@ -145,31 +146,113 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			return;
 		}
 
-		$component = IntegrationHelper::getComponentFromForm($form);
-		if (!$component)
-		{
-			return;
-		}
-
 		$order          = new \stdClass();
 		$order->payment = $payment;
-
 		if (!$this->checkOrderPaymentPlugin($order))
 		{
 			return;
 		}
 
-		$params = $this->getPaymentMethodParams($component, $payment->id);
+		$params = $this->getPaymentMethodParams(IntegrationHelper::RadicalMart, $payment->id);
 
 		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
 		{
-			$form->setFieldAttribute('promo_code', 'context', $context, 'payment');
-			$form->setFieldAttribute('promo_code', 'codes',
-				(new Registry($params->get('promo_codes')))->toString(), 'payment');
+
+			$xml = new \SimpleXMLElement('<?xml version="1.0" encoding="utf-8"?><form/>');
+			$xml->addAttribute('addfieldprefix', ($formName === 'com_radicalmart.order')
+				? 'Joomla\Component\RadicalMart\Administrator\Field' : 'Joomla\Component\RadicalMart\Site\Field');
+
+			$fieldset = $xml->addChild('fieldset');
+			$fieldset->addAttribute('name', 'payment');
+
+			$fields = $fieldset->addChild('fields');
+			$fields->addAttribute('name', 'payment');
+
+			$field = $fields->addChild('field');
+
+			$field->addAttribute('label', 'PLG_RADICALMART_PAYMENT_TINKOFF_CREDIT_PROMO_CODE_LABEL');
+
+			if ($formName === 'com_radicalmart.order' || $formName === 'com_radicalmart.checkout')
+			{
+				$codes = [];
+				$field->addAttribute('name', 'promo_code');
+				foreach ($params->get('promo_codes', []) as $value => $label)
+				{
+					$codes[$value] = [
+						'id'       => $value,
+						'title'    => $label,
+						'media'    => [],
+						'state'    => 1,
+						'disabled' => false,
+					];
+				}
+				$field->addAttribute('methods', (new Registry($codes))->toString());
+				$field->addAttribute('type', 'method_payment');
+			}
+			else
+			{
+				$field->addAttribute('name', 'promo_code_text');
+				$field->addAttribute('type', 'value_text');
+
+				$codes     = $params->get('promo_codes', []);
+				$promoCode = (!empty($formData) && !empty($formData['payment'])
+					&& !empty($formData['payment']['promo_code'])) ? $formData['payment']['promo_code'] : 'undefined';
+				$value     = (isset($codes[$promoCode])) ? $codes[$promoCode] : $promoCode;
+
+				$field->addAttribute('default', $value);
+			}
+
+			if ($formName === 'com_radicalmart.checkout')
+			{
+				$field->addAttribute('parentclass', 'w-100 uk-width-1-1');
+				$field->addAttribute('labelclass', 'h4 uk-h4');
+			}
+
+			$form->load($xml->asXML());
 		}
-		else
+	}
+
+
+	/**
+	 * Method to display logs in RadicalMart & RadicalMart Express order.
+	 *
+	 * @param   string  $context  Context selector string.
+	 * @param   array   $log      Log data.
+	 *
+	 * @since  __DEPLOY_VERSION__
+	 */
+	public function onGetOrderLogs(string $context, array &$log)
+	{
+		if (!str_contains($log['action'], 'tinkoff'))
 		{
-			$form->removeField('promo_code', 'payment');
+			return;
+		}
+
+		$event              = str_replace('tinkoff_', '', $log['action']);
+		$log['action_text'] = Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_LOGS_' . $event);
+		if ($event === 'pay_error' || $event === 'callback_error')
+		{
+			$log['message'] = (!empty($log['error_message'])) ? $log['error_message'] : '';
+
+			return;
+		}
+
+		$payment_type = (!empty($log['payment_type'])) ? $log['payment_type'] : self::PaymentTypeAcquiring;
+		$constant     = 'PLG_RADICALMART_PAYMENT_TINKOFF_LOGS_' . $event . '_' . $payment_type;
+
+		if ($event === 'pay_success')
+		{
+			$value = '';
+			if ($payment_type === self::PaymentTypeCredit && !empty($log['bidId']))
+			{
+				$value = $log['bidId'];
+			}
+			elseif ($payment_type === self::PaymentTypeAcquiring && !empty($log['PaymentId']))
+			{
+				$value = $log['PaymentId'];
+			}
+
+			$log['message'] = Text::sprintf($constant, $value);
 		}
 	}
 
@@ -209,7 +292,6 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		{
 			return false;
 		}
-
 
 		// Check access params
 		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
@@ -632,6 +714,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		{
 			$params->set('statuses_available', [1]);
 			$params->set('statuses_paid', 2);
+			$params->set('payment_type', self::PaymentTypeAcquiring);
 		}
 
 		if (!empty($params->get('promo_codes')))
@@ -639,6 +722,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			if (!is_array($params->get('promo_codes')))
 			{
 				$codes = [];
+
 				foreach ((new Registry($params->get('promo_codes')))->toArray() as $promo_code)
 				{
 					$codes[trim($promo_code['promo_value'])] = trim($promo_code['promo_label']);

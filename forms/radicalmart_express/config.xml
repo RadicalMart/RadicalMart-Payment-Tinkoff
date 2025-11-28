@@ -2,12 +2,6 @@
 <form addfieldprefix="Joomla\Component\RadicalMartExpress\Administrator\Field">
 	<fieldset name="payment_api" label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT">
 		<fields name="payment_method_params">
-			<field name="payment_type" type="list"
-				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE"
-				   default="acquiring">
-				<option value="acquiring">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_ACQUIRING</option>
-				<option value="credit">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_CREDIT</option>
-			</field>
 			<field name="terminal_key" type="text"
 				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY"
 				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY_DESCRIPTION"
