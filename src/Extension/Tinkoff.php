@@ -75,6 +75,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			'onRadicalMartExpressGetOrderPaymentMethods' => 'onGetOrderPaymentMethods',
 			'onRadicalMartExpressGetOrderLogs'           => 'onGetOrderLogs',
 			'onRadicalMartExpressCheckOrderPay'          => 'onCheckOrderPay',
+			'onRadicalMartExpressPaymentPay'             => 'onPaymentPay',
 			'onRadicalMartExpressPaymentCallback'        => 'onPaymentCallback',
 		];
 	}
