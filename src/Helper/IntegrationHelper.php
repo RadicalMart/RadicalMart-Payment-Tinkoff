@@ -256,7 +256,7 @@ class IntegrationHelper
 		}
 		elseif ($component === self::RadicalMartExpress)
 		{
-			$boot = $app->bootComponent('com_radicalmart');
+			$boot = $app->bootComponent('com_radicalmart_express');
 		}
 		else
 		{
