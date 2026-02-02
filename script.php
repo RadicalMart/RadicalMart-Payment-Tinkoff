@@ -1,0 +1,342 @@
+<?php
+/*
+ * @package     RadicalMart Payment Tinkoff Plugin
+ * @subpackage  plg_radicalmart_payment_tinkoff
+ * @version     2.0.0
+ * @author      RadicalMart Team - radicalmart.ru
+ * @copyright   Copyright (c) 2026 RadicalMart. All rights reserved.
+ * @license     GNU/GPL license: https://www.gnu.org/copyleft/gpl.html
+ * @link        https://radicalmart.ru/
+ */
+
+\defined('_JEXEC') or die;
+
+use Joomla\CMS\Application\AdministratorApplication;
+use Joomla\CMS\Component\ComponentHelper;
+use Joomla\CMS\Factory;
+use Joomla\CMS\Installer\Installer;
+use Joomla\CMS\Installer\InstallerAdapter;
+use Joomla\CMS\Installer\InstallerHelper;
+use Joomla\CMS\Installer\InstallerScriptInterface;
+use Joomla\CMS\Language\Text;
+use Joomla\Database\DatabaseDriver;
+use Joomla\DI\Container;
+use Joomla\DI\ServiceProviderInterface;
+use Joomla\Filesystem\Path;
+use Joomla\Registry\Registry;
+
+return new class () implements ServiceProviderInterface {
+	public function register(Container $container): void
+	{
+		$container->set(InstallerScriptInterface::class,
+			new class ($container->get(AdministratorApplication::class)) implements InstallerScriptInterface {
+				/**
+				 * The application object
+				 *
+				 * @var  AdministratorApplication
+				 *
+				 * @since  2.0.0
+				 */
+				protected AdministratorApplication $app;
+
+				/**
+				 * The Database object.
+				 *
+				 * @var   DatabaseDriver
+				 *
+				 * @since  2.0.0
+				 */
+				protected DatabaseDriver $db;
+
+				/**
+				 * Language constant for errors.
+				 *
+				 * @var string
+				 *
+				 * @since 2.0.0
+				 */
+				protected string $constant = "";
+
+				/**
+				 * Update methods.
+				 *
+				 * @var  array
+				 *
+				 * @since  2.0.0
+				 */
+				protected array $updateMethods = [
+					'update20'
+				];
+
+				/**
+				 * Constructor.
+				 *
+				 * @param   AdministratorApplication  $app  The application object.
+				 *
+				 * @since 2.0.0
+				 */
+				public function __construct(AdministratorApplication $app)
+				{
+					$this->app = $app;
+					$this->db  = Factory::getContainer()->get('DatabaseDriver');
+				}
+
+				/**
+				 * Function called after the extension is installed.
+				 *
+				 * @param   InstallerAdapter  $adapter  The adapter calling this method
+				 *
+				 * @return  boolean  True on success
+				 *
+				 * @since   2.0.0
+				 */
+				public function install(InstallerAdapter $adapter): bool
+				{
+					$this->enablePlugin($adapter);
+
+					return true;
+				}
+
+				/**
+				 * Function called after the extension is updated.
+				 *
+				 * @param   InstallerAdapter  $adapter  The adapter calling this method
+				 *
+				 * @return  boolean  True on success
+				 *
+				 * @since   2.0.0
+				 */
+				public function update(InstallerAdapter $adapter): bool
+				{
+					return true;
+				}
+
+				/**
+				 * Function called after the extension is uninstalled.
+				 *
+				 * @param   InstallerAdapter  $adapter  The adapter calling this method
+				 *
+				 * @return  boolean  True on success
+				 *
+				 * @since   2.0.0
+				 */
+				public function uninstall(InstallerAdapter $adapter): bool
+				{
+					return true;
+				}
+
+				/**
+				 * Function called before extension installation/update/removal procedure commences.
+				 *
+				 * @param   string            $type     The type of change (install or discover_install, update, uninstall)
+				 * @param   InstallerAdapter  $adapter  The adapter calling this method
+				 *
+				 * @return  boolean  True on success
+				 *
+				 * @since   2.0.0
+				 */
+				public function preflight(string $type, InstallerAdapter $adapter): bool
+				{
+					return true;
+				}
+
+				/**
+				 * Function called after extension installation/update/removal procedure commences.
+				 *
+				 * @param   string            $type     The type of change (install or discover_install, update, uninstall)
+				 * @param   InstallerAdapter  $adapter  The adapter calling this method
+				 *
+				 * @return  boolean  True on success
+				 *
+				 * @since   2.0.0
+				 */
+				public function postflight(string $type, InstallerAdapter $adapter): bool
+				{
+					$installer = $adapter->getParent();
+					if ($type !== 'uninstall')
+					{
+						$this->checkFiscalizationInstaller($installer);
+
+						// Run updates script
+						if ($type === 'update')
+						{
+							foreach ($this->updateMethods as $method)
+							{
+								if (method_exists($this, $method))
+								{
+									$this->$method($adapter);
+								}
+							}
+						}
+					}
+
+					return true;
+				}
+
+				/**
+				 * Enable plugin after installation.
+				 *
+				 * @param   InstallerAdapter  $adapter  Parent object calling object.
+				 *
+				 * @since  2.0.0
+				 */
+				protected function enablePlugin(InstallerAdapter $adapter): void
+				{
+					// Prepare plugin object
+					$plugin          = new \stdClass();
+					$plugin->type    = 'plugin';
+					$plugin->element = $adapter->getElement();
+					$plugin->folder  = (string) $adapter->getParent()->manifest->attributes()['group'];
+					$plugin->enabled = 1;
+
+					// Update record
+					$this->db->updateObject('#__extensions', $plugin, ['type', 'element', 'folder']);
+				}
+
+				/**
+				 * Method to check fiscalization plugin and install if needed.
+				 *
+				 * @param   Installer|null  $installer  Installer calling object.
+				 *
+				 * @throws  \Exception
+				 *
+				 * @since  2.1.0
+				 */
+				protected function checkFiscalizationInstaller(Installer $installer = null): void
+				{
+					try
+					{
+						// Find extension
+						$db    = $this->db;
+						$query = $db->getQuery(true)
+							->select('extension_id')
+							->from($db->quoteName('#__extensions'))
+							->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+							->where($db->quoteName('element') . ' = ' . $db->quote('fiscalization'))
+							->where($db->quoteName('folder') . ' = ' . $db->quote('radicalmart'));
+						if (!$db->setQuery($query, 0, 1)->loadResult())
+						{
+							// Download extension
+							$src  = 'https://sovmart.ru/download?element=plg_radicalmart_fiscalization';
+							$dest = Path::clean($installer->getPath('source') . '/plg_radicalmart_fiscalization.zip');
+
+							if (!$context = file_get_contents($src))
+							{
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_DOWNLOAD'), -1);
+							}
+							if (!file_put_contents($dest, $context))
+							{
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_DOWNLOAD'), -1);
+							}
+
+							// Install extension
+							if (!$package = InstallerHelper::unpack($dest, true))
+							{
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
+							}
+
+							if (!$package['type'])
+							{
+								InstallerHelper::cleanupInstall('', $package['extractdir']);
+
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
+							}
+
+							$installer = Installer::getInstance();
+							$installer->setPath('source', $package['dir']);
+							if (!$installer->findManifest())
+							{
+								InstallerHelper::cleanupInstall('', $package['extractdir']);
+
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
+							}
+
+							if (!$installer->install($package['dir']))
+							{
+								InstallerHelper::cleanupInstall('', $package['extractdir']);
+
+								throw new Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_FISCALIZATION_INSTALL'), -1);
+							}
+
+							InstallerHelper::cleanupInstall('', $package['extractdir']);
+						}
+					}
+					catch (Exception $e)
+					{
+						$this->app->enqueueMessage($e->getMessage(), 'error');
+					}
+				}
+
+				/**
+				 * Plugin 1.x-> 2.x Updater
+				 *
+				 * @since 2.0.0
+				 */
+				protected function update20(): void
+				{
+					$db      = $this->db;
+					$mapping = [
+						'tinkoff_tid'       => 'terminal_key',
+						'tinkoff_password'  => 'terminal_password',
+						'tinkoff_sno'       => 'taxation',
+						'payment_available' => 'statuses_available',
+						'paid_status'       => 'statuses_paid',
+					];
+					if (ComponentHelper::isEnabled('com_radicalmart'))
+					{
+						$query = $db->createQuery()
+							->select(['id', 'params'])
+							->from($db->quoteName('#__radicalmart_payment_methods'))
+							->where($db->quoteName('plugin') . ' = ' . $db->quote('tinkoff'));
+						foreach ($db->setQuery($query)->loadObjectList() as $method)
+						{
+							$method->params = new Registry($method->params);
+							$update         = false;
+							foreach ($mapping as $old => $new)
+							{
+								if ($method->params->exists($old))
+								{
+									$method->params->set($new, $method->params->get($old));
+									$method->params->remove($old);
+									$update = true;
+								}
+							}
+
+							if ($update)
+							{
+								$method->params = $method->params->toString();
+								$db->updateObject('#__radicalmart_payment_methods', $method, 'id');
+							}
+						}
+					}
+
+					if (ComponentHelper::isEnabled('com_radicalmart_express'))
+					{
+						$query             = $db->createQuery()
+							->select(['extension_id', 'params'])
+							->from($db->quoteName('#__extensions'))
+							->where($db->quoteName('element') . ' = ' . $db->quote('com_radicalmart_express'));
+						$extension         = $db->setQuery($query, 0, 1)->loadObject();
+						$extension->params = new Registry($extension->params);
+						$update            = false;
+						foreach ($mapping as $old => $new)
+						{
+							if ($extension->params->exists($old))
+							{
+
+								$extension->params->set('payment_method_params.' . $new, $extension->params->get($old));
+								$extension->params->remove($old);
+								$update = true;
+							}
+						}
+
+						if ($update)
+						{
+							$extension->params = $extension->params->toString();
+							$db->updateObject('#__extensions', $extension, 'extension_id');
+						}
+					}
+				}
+			});
+	}
+};

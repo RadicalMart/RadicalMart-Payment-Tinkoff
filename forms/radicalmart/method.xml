@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form addfieldprefix="Joomla\Component\RadicalMart\Administrator\Field">
+	<fieldset name="primary" tab="sidebar">
+		<fields name="params">
+			<field name="payment_type" type="list"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE"
+				   default="acquiring">
+				<option value="acquiring">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_ACQUIRING</option>
+				<option value="credit">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT_TYPE_CREDIT</option>
+			</field>
+		</fields>
+	</fieldset>
+	<fieldset name="settings_api" tab="settings"
+			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_API">
+		<fields name="params">
+			<field name="terminal_key" type="text"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY_DESCRIPTION"
+				   autocomplete="false"
+				   showon="params.payment_type:acquiring"/>
+			<field name="terminal_password" type="password"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD_DESCRIPTION"
+				   autocomplete="false"
+				   showon="params.payment_type:acquiring"/>
+			<field name="taxation" type="list"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION"
+				   default="osn"
+				   layout="joomla.form.field.list-fancy-select"
+				   showon="params.payment_type:acquiring">
+				<option value="osn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_OSN</option>
+				<option value="usn_income">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_USN_INCOME</option>
+				<option value="usn_income_outcome">
+					PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_USN_INCOME_OUTCOME
+				</option>
+				<option value="envd">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_ENVD</option>
+				<option value="esn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_ESN</option>
+				<option value="patent">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_PATENT</option>
+			</field>
+			<field name="shop_id" type="text"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOP_ID"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOP_ID_DESCRIPTION"
+				   autocomplete="false"
+				   showon="params.payment_type:credit"/>
+			<field name="showcase_id" type="text"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOWCASE_ID"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOWCASE_ID_DESCRIPTION"
+				   autocomplete="false"
+				   showon="params.payment_type:credit"/>
+			<field name="showcase_password" type="password"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOWCASE_PASSWORD"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_SHOWCASE_PASSWORD_DESCRIPTION"
+				   autocomplete="false"
+				   showon="params.payment_type:credit"/>
+			<field name="promo_codes" type="subform"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PROMO_CODES"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PROMO_CODES_DESCRIPTION"
+				   multiple="true"
+				   parentclass="stack"
+				   showon="params.payment_type:credit">
+				<form>
+					<field name="promo_value"
+						   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PROMO_CODES_VALUE"
+						   required="true"/>
+					<field name="promo_label"
+						   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PROMO_CODES_LABEL"
+						   required="true"/>
+				</form>
+			</field>
+		</fields>
+	</fieldset>
+	<fieldset name="settings_statuses" tab="settings"
+			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES">
+		<fields name="params">
+			<field name="statuses_available" type="statuses"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_AVAILABLE"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_AVAILABLE_DESCRIPTION"
+				   hint=" "
+				   multiple="true"
+				   required="true"
+				   layout="joomla.form.field.list-fancy-select"/>
+			<field name="statuses_paid" type="statuses"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID_DESCRIPTION"
+				   required="true"
+				   layout="joomla.form.field.list-fancy-select">
+				<option value="">COM_RADICALMART_STATUS_SELECT</option>
+			</field>
+			<field name="statuses_paid" type="statuses"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_STATUSES_PAID_DESCRIPTION"
+				   required="true"
+				   layout="joomla.form.field.list-fancy-select">
+				<option value="">COM_RADICALMART_STATUS_SELECT</option>
+			</field>
+		</fields>
+	</fieldset>
+	<fieldset name="settings_test" tab="settings"
+			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST">
+		<fields name="params">
+			<field name="test_acquiring" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING"
+				   class="btn-group btn-group-yesno"
+				   default="0"
+				   showon="params.payment_type:acquiring">
+				<option value="1">JYES</option>
+				<option value="0">JNO</option>
+			</field>
+			<field type="note"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_DESCRIPTION"
+				   hiddenLabel="true"
+				   class="alert alert-warning"
+				   showon="params.payment_type:acquiring"/>
+			<field name="test_credit" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_CREDIT"
+				   class="btn-group btn-group-yesno"
+				   default="0"
+				   showon="params.payment_type:credit">
+				<option value="1">JYES</option>
+				<option value="0">JNO</option>
+			</field>
+			<field type="note"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_CREDIT_DESCRIPTION"
+				   hiddenLabel="true"
+				   class="alert alert-primary"
+				   showon="params.payment_type:credit"/>
+		</fields>
+	</fieldset>
+</form>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form addfieldprefix="Joomla\Component\RadicalMartExpress\Administrator\Field">
+	<fieldset name="payment_api" label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_PAYMENT">
+		<fields name="payment_method_params">
+			<field name="terminal_key" type="text"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_KEY_DESCRIPTION"
+				   autocomplete="false"
+				   showon="payment_method_params.payment_type:acquiring"/>
+			<field name="terminal_password" type="password"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TERMINAL_PASSWORD_DESCRIPTION"
+				   autocomplete="false"
+				   showon="payment_method_params.payment_type:acquiring"/>
+			<field name="taxation" type="list"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION"
+				   default="osn"
+				   layout="joomla.form.field.list-fancy-select"
+				   showon="payment_method_params.payment_type:acquiring">
+				<option value="osn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_OSN</option>
+				<option value="usn_income">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_USN_INCOME</option>
+				<option value="usn_income_outcome">
+					PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_USN_INCOME_OUTCOME
+				</option>
+				<option value="envd">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_ENVD</option>
+				<option value="esn">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_ESN</option>
+				<option value="patent">PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TAXATION_PATENT</option>
+			</field>
+		</fields>
+	</fieldset>
+	<fieldset name="payment_test" tab="settings"
+			  label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST">
+		<fields name="payment_method_params">
+			<field name="test_acquiring" type="radio"
+				   label="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING"
+				   class="btn-group btn-group-yesno"
+				   default="0"
+				   showon="payment_method_params.payment_type:acquiring">
+				<option value="1">JYES</option>
+				<option value="0">JNO</option>
+			</field>
+			<field type="note"
+				   description="PLG_RADICALMART_PAYMENT_TINKOFF_PARAMS_TEST_ACQUIRING_DESCRIPTION"
+				   hiddenLabel="true"
+				   class="alert alert-warning"
+				   showon="payment_method_params.payment_type:acquiring"/>
+		</fields>
+	</fieldset>
+</form>
