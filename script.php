@@ -2,7 +2,7 @@
 /*
  * @package     RadicalMart Payment Tinkoff Plugin
  * @subpackage  plg_radicalmart_payment_tinkoff
- * @version     __DEPLOY_VERSION__
+ * @version     2.0.0
  * @author      RadicalMart Team - radicalmart.ru
  * @copyright   Copyright (c) 2026 RadicalMart. All rights reserved.
  * @license     GNU/GPL license: https://www.gnu.org/copyleft/gpl.html
@@ -35,7 +35,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @var  AdministratorApplication
 				 *
-				 * @since  __DEPLOY_VERSION__
+				 * @since  2.0.0
 				 */
 				protected AdministratorApplication $app;
 
@@ -44,7 +44,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @var   DatabaseDriver
 				 *
-				 * @since  __DEPLOY_VERSION__
+				 * @since  2.0.0
 				 */
 				protected DatabaseDriver $db;
 
@@ -53,7 +53,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @var string
 				 *
-				 * @since __DEPLOY_VERSION__
+				 * @since 2.0.0
 				 */
 				protected string $constant = "";
 
@@ -62,7 +62,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @var  array
 				 *
-				 * @since  __DEPLOY_VERSION__
+				 * @since  2.0.0
 				 */
 				protected array $updateMethods = [
 					'update20'
@@ -73,7 +73,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @param   AdministratorApplication  $app  The application object.
 				 *
-				 * @since __DEPLOY_VERSION__
+				 * @since 2.0.0
 				 */
 				public function __construct(AdministratorApplication $app)
 				{
@@ -88,7 +88,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @return  boolean  True on success
 				 *
-				 * @since   __DEPLOY_VERSION__
+				 * @since   2.0.0
 				 */
 				public function install(InstallerAdapter $adapter): bool
 				{
@@ -104,7 +104,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @return  boolean  True on success
 				 *
-				 * @since   __DEPLOY_VERSION__
+				 * @since   2.0.0
 				 */
 				public function update(InstallerAdapter $adapter): bool
 				{
@@ -118,7 +118,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @return  boolean  True on success
 				 *
-				 * @since   __DEPLOY_VERSION__
+				 * @since   2.0.0
 				 */
 				public function uninstall(InstallerAdapter $adapter): bool
 				{
@@ -133,7 +133,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @return  boolean  True on success
 				 *
-				 * @since   __DEPLOY_VERSION__
+				 * @since   2.0.0
 				 */
 				public function preflight(string $type, InstallerAdapter $adapter): bool
 				{
@@ -148,7 +148,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @return  boolean  True on success
 				 *
-				 * @since   __DEPLOY_VERSION__
+				 * @since   2.0.0
 				 */
 				public function postflight(string $type, InstallerAdapter $adapter): bool
 				{
@@ -178,7 +178,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @param   InstallerAdapter  $adapter  Parent object calling object.
 				 *
-				 * @since  __DEPLOY_VERSION__
+				 * @since  2.0.0
 				 */
 				protected function enablePlugin(InstallerAdapter $adapter): void
 				{
@@ -270,7 +270,7 @@ return new class () implements ServiceProviderInterface {
 				/**
 				 * Plugin 1.x-> 2.x Updater
 				 *
-				 * @since __DEPLOY_VERSION__
+				 * @since 2.0.0
 				 */
 				protected function update20(): void
 				{

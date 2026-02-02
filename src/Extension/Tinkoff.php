@@ -2,7 +2,7 @@
 /*
  * @package     RadicalMart Payment Tinkoff Plugin
  * @subpackage  plg_radicalmart_payment_tinkoff
- * @version     __DEPLOY_VERSION__
+ * @version     2.0.0
  * @author      RadicalMart Team - radicalmart.ru
  * @copyright   Copyright (c) 2026 RadicalMart. All rights reserved.
  * @license     GNU/GPL license: https://www.gnu.org/copyleft/gpl.html
@@ -35,14 +35,14 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @var string
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	public string $extension = 'plg_radicalmart_payment_tinkoff';
 
 	/**
 	 * Test environment.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected bool $securePayTestEnvironment = false;
 
@@ -51,7 +51,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @var    bool
 	 *
-	 * @since  __DEPLOY_VERSION__
+	 * @since  2.0.0
 	 */
 	protected $autoloadLanguage = true;
 
@@ -60,7 +60,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return  array
 	 *
-	 * @since   __DEPLOY_VERSION__
+	 * @since   2.0.0
 	 */
 	public static function getSubscribedEvents(): array
 	{
@@ -91,7 +91,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @throws  \Exception
 	 *
-	 * @since  __DEPLOY_VERSION__
+	 * @since  2.0.0
 	 */
 	public function onGetOrderPaymentMethods(string $context, object $method, array $formData,
 	                                         array  $products, array $currency): void
@@ -135,7 +135,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @throws \Exception
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	public function onRadicalMartGetOrderForm(string $context, Form $form, array $formData,
 	                                          array  $products, object $shipping, object|bool $payment,
@@ -220,7 +220,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 * @param   string  $context  Context selector string.
 	 * @param   array   $log      Log data.
 	 *
-	 * @since  __DEPLOY_VERSION__
+	 * @since  2.0.0
 	 */
 	public function onGetOrderLogs(string $context, array &$log)
 	{
@@ -267,7 +267,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return boolean True if can pay, False if not.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	public function onCheckOrderPay(string $context, object $order): bool
 	{
@@ -326,7 +326,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return  array  Payment redirect data on success.
 	 *
-	 * @since  __DEPLOY_VERSION__
+	 * @since  2.0.0
 	 */
 	public function onPaymentPay(string $context, object $order, array $links, Registry $params): array
 	{
@@ -558,7 +558,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return Registry Request response Registry object.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function sendPostRequest(string $url, array $data, array $headers = []): Registry
 	{
@@ -592,7 +592,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return Registry Request response Registry object.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function sendGetRequest(string $url, array $headers = []): Registry
 	{
@@ -623,7 +623,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return Registry
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function parseResponse(Response $response): Registry
 	{
@@ -683,7 +683,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return bool True if current plugin, false if not.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function checkOrderPaymentPlugin(object $order): bool
 	{
@@ -698,7 +698,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return Registry Payment method params
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function getPaymentMethodParams(string $component, int $method_id): Registry
 	{
@@ -740,7 +740,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	/**
 	 * Method to set valid callback response.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function setCallbackResponse(): void
 	{
@@ -760,7 +760,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return array Request param data.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function getCreditPayRequest(string $component, object $order, array $links, Registry $params): array
 	{
@@ -897,7 +897,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @throws \Exception
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function getCreditCallback(string $component, int &$order_id, string &$debugAction, array &$debugData,
 	                                     array  $input, RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model)
@@ -1117,7 +1117,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return array Request param data.
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function getAcquiringPayRequest(string $component, object $order, array $links, Registry $params): array
 	{
@@ -1212,7 +1212,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @throws \Exception
 	 *
-	 * @since __DEPLOY_VERSION__
+	 * @since 2.0.0
 	 */
 	protected function getAcquiringCallback(string $component, int &$order_id, string &$debugAction, array &$debugData,
 	                                        array  $input, RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model): void
@@ -1450,7 +1450,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return  string Generated api request token.
 	 *
-	 * @since   __DEPLOY_VERSION__
+	 * @since   2.0.0
 	 */
 	protected function getAcquiringToken(array $args, string $password): string
 	{
