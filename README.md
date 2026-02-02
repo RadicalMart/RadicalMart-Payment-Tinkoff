@@ -87,7 +87,6 @@ All configuration is stored using standard Joomla plugin parameters.
 
 - Callback validation is required to ensure payment authenticity.
 - Order updates are performed only after successful verification.
-- Sensitive data is never stored in RadicalMart.
 
 ---
 
