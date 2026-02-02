@@ -2,7 +2,7 @@
 /*
  * @package     RadicalMart Payment Tinkoff Plugin
  * @subpackage  plg_radicalmart_payment_tinkoff
- * @version     2.0.0
+ * @version     __DEPLOY_VERSION__
  * @author      RadicalMart Team - radicalmart.ru
  * @copyright   Copyright (c) 2026 RadicalMart. All rights reserved.
  * @license     GNU/GPL license: https://www.gnu.org/copyleft/gpl.html
