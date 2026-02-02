@@ -4,7 +4,7 @@
  * @subpackage  plg_radicalmart_payment_tinkoff
  * @version     __DEPLOY_VERSION__
  * @author      RadicalMart Team - radicalmart.ru
- * @copyright   Copyright (c) 2025 RadicalMart. All rights reserved.
+ * @copyright   Copyright (c) 2026 RadicalMart. All rights reserved.
  * @license     GNU/GPL license: https://www.gnu.org/copyleft/gpl.html
  * @link        https://radicalmart.ru/
  */
@@ -26,7 +26,7 @@ use Joomla\Filesystem\Path;
 use Joomla\Registry\Registry;
 
 return new class () implements ServiceProviderInterface {
-	public function register(Container $container)
+	public function register(Container $container): void
 	{
 		$container->set(InstallerScriptInterface::class,
 			new class ($container->get(AdministratorApplication::class)) implements InstallerScriptInterface {
@@ -180,7 +180,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @since  __DEPLOY_VERSION__
 				 */
-				protected function enablePlugin(InstallerAdapter $adapter)
+				protected function enablePlugin(InstallerAdapter $adapter): void
 				{
 					// Prepare plugin object
 					$plugin          = new \stdClass();
@@ -202,7 +202,7 @@ return new class () implements ServiceProviderInterface {
 				 *
 				 * @since  2.1.0
 				 */
-				protected function checkFiscalizationInstaller(Installer $installer = null)
+				protected function checkFiscalizationInstaller(Installer $installer = null): void
 				{
 					try
 					{
@@ -267,6 +267,11 @@ return new class () implements ServiceProviderInterface {
 					}
 				}
 
+				/**
+				 * Plugin 1.x-> 2.x Updater
+				 *
+				 * @since __DEPLOY_VERSION__
+				 */
 				protected function update20(): void
 				{
 					$db      = $this->db;
