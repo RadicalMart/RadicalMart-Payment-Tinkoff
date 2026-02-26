@@ -22,6 +22,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseDriver;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
+use Joomla\Filesystem\Folder;
 use Joomla\Filesystem\Path;
 use Joomla\Registry\Registry;
 
@@ -137,6 +138,15 @@ return new class () implements ServiceProviderInterface {
 				 */
 				public function preflight(string $type, InstallerAdapter $adapter): bool
 				{
+					if ($type === 'update')
+					{
+						$folder = Path::clean(JPATH_PLUGINS . '/radicalmart_payment/tinkoff/forms');
+						if (is_dir($folder))
+						{
+							Folder::delete($folder);
+						}
+					}
+
 					return true;
 				}
 

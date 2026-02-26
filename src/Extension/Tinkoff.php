@@ -40,13 +40,6 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	public string $extension = 'plg_radicalmart_payment_tinkoff';
 
 	/**
-	 * Test environment.
-	 *
-	 * @since 2.0.0
-	 */
-	protected bool $securePayTestEnvironment = false;
-
-	/**
 	 * Load the language file on instantiation.
 	 *
 	 * @var    bool
@@ -158,7 +151,6 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 
 		if ($params->get('payment_type', self::PaymentTypeAcquiring) === self::PaymentTypeCredit)
 		{
-
 			$xml = new \SimpleXMLElement('<?xml version="1.0" encoding="utf-8"?><form/>');
 			$xml->addAttribute('addfieldprefix', ($formName === 'com_radicalmart.order')
 				? 'Joomla\Component\RadicalMart\Administrator\Field' : 'Joomla\Component\RadicalMart\Site\Field');
@@ -177,18 +169,13 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			{
 				$codes = [];
 				$field->addAttribute('name', 'promo_code');
+				$field->addAttribute('type', 'list');
 				foreach ($params->get('promo_codes', []) as $value => $label)
 				{
-					$codes[$value] = [
-						'id'       => $value,
-						'title'    => $label,
-						'media'    => [],
-						'state'    => 1,
-						'disabled' => false,
-					];
+					$option = $field->addChild('option', $label);
+					$option->addAttribute('value', $value);
 				}
 				$field->addAttribute('methods', (new Registry($codes))->toString());
-				$field->addAttribute('type', 'method_payment');
 			}
 			else
 			{
@@ -212,7 +199,6 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$form->load($xml->asXML());
 		}
 	}
-
 
 	/**
 	 * Method to display logs in RadicalMart & RadicalMart Express order.
