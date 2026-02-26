@@ -1221,16 +1221,18 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 		$debugger     = 'payment.callback';
 		$debuggerFile = 'site_payment_controller.php';
 
-		$paidStatuses = ['CONFIRMED', 'AUTHORIZED'];
+		$paidStatuses = ['AUTHORIZED', 'CONFIRMED'];
+		$eventStatus  = 'AUTHORIZED';
 		$debugData    = [
 			'input_status'  => $input['Status'],
 			'paid_statuses' => $paidStatuses,
+			'event_status'  => $eventStatus,
 		];
 
 		// Check input data
 		$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Check input data', 'start', null,
 			$debugData, null, false);
-		if (!in_array($input['Status'], $paidStatuses))
+		if ($input['Status'] !== $eventStatus)
 		{
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'response',
 				Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_INCORRECT_INPUT_STATUS'));
