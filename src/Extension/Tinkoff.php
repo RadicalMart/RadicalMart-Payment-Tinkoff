@@ -118,20 +118,18 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	/**
 	 * Prepare RadicalMart order forms.
 	 *
-	 * @param   string        $context   Context selector string.
-	 * @param   Form          $form      Order form object.
-	 * @param   array         $formData  Form data array.
-	 * @param   array         $products  Shipping method data.
-	 * @param   object        $shipping  Shipping method data.
-	 * @param   object|false  $payment   Payment method data.
-	 * @param   array         $currency  Order currency data.
-	 *
-	 * @throws \Exception
+	 * @param   string            $context   Context selector string.
+	 * @param   Form              $form      Order form object.
+	 * @param   array             $formData  Form data array.
+	 * @param   array             $products  Shipping method data.
+	 * @param   object|bool|null  $shipping  Shipping method data.
+	 * @param   object|false      $payment   Payment method data.
+	 * @param   array             $currency  Order currency data.
 	 *
 	 * @since 2.0.0
 	 */
 	public function onRadicalMartGetOrderForm(string $context, Form $form, array $formData,
-	                                          array  $products, object $shipping, object|bool $payment,
+	                                          array  $products, object|bool|null $shipping, object|bool $payment,
 	                                          array  $currency): void
 	{
 		$formName = $form->getName();
@@ -208,7 +206,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @since  2.0.0
 	 */
-	public function onGetOrderLogs(string $context, array &$log)
+	public function onGetOrderLogs(string $context, array &$log): void
 	{
 		if (!str_contains($log['action'], 'tinkoff'))
 		{
@@ -886,7 +884,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	 * @since 2.0.0
 	 */
 	protected function getCreditCallback(string $component, int &$order_id, string &$debugAction, array &$debugData,
-	                                     array  $input, RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model)
+	                                     array  $input, RadicalMartExpressPaymentModel|RadicalMartPaymentModel $model): void
 	{
 		$debug        = IntegrationHelper::getDebugHelper($component);
 		$debugger     = 'payment.callback';
