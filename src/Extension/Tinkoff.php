@@ -352,6 +352,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			{
 				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_PAYMENT_NOT_AVAILABLE'));
 			}
+
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
 
 			// Prepare request data
@@ -606,9 +607,9 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 	}
 
 	/**
-	 * Method to parse api resonse.
+	 * Method to parse api response.
 	 *
-	 * @param   Response  $response  Http Response
+	 * @param   Response  $response  Http Response.
 	 *
 	 * @throws \Exception
 	 *
@@ -1032,7 +1033,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 
 		if ($paymentParsedId !== $order_number)
 		{
-			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_PARTPAY_ERROR_ORDER_NOT_FOUND'), 403);
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND'), 403);
 		}
 
 		if (!in_array($paymentStatus, $paidStatuses))
@@ -1372,7 +1373,7 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 
 		if ($paymentParsedOrderId !== $order_id)
 		{
-			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_PARTPAY_ERROR_ORDER_NOT_FOUND'), 403);
+			throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_ORDER_NOT_FOUND'), 403);
 		}
 
 		if (!in_array($paymentStatus, $paidStatuses))
