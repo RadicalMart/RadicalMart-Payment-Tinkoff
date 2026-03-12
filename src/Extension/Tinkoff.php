@@ -343,8 +343,16 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
 
 			// Get params
+			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Get payment method params', 'start',
+				null, null, null, false);
 			$params      = $this->getPaymentMethodParams($component, $order->payment->id);
 			$paymentType = $params->get('payment_type', self::PaymentTypeAcquiring);
+
+			if (empty($order->status->id) || !in_array($order->status->id, $params->get('statuses_available', [])))
+			{
+				throw new \Exception(Text::_('PLG_RADICALMART_PAYMENT_TINKOFF_ERROR_PAYMENT_NOT_AVAILABLE'));
+			}
+			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, null, null, false);
 
 			// Prepare request data
 			$debug::addDebug($debugger, $debuggerFile, $debugAction = 'Prepare api request data', 'start',
@@ -367,7 +375,6 @@ class Tinkoff extends CMSPlugin implements SubscriberInterface
 			$debug::addDebug($debugger, $debuggerFile, $debugAction, 'success', null, [
 				'response_data' => $response->toArray(),
 			]);
-
 
 			$log = [
 				'plugin'       => $this->_name,
